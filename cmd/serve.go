@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,13 +8,12 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"runtime/debug"
-	"strings"
 	"syscall"
 	"time"
 
+	"github.com/Strovala/crackview/execution"
 	"github.com/go-chi/chi"
 	chiCors "github.com/go-chi/cors"
 	"github.com/pkg/errors"
@@ -108,117 +106,6 @@ type CodeRequest struct {
 	Lang string `json:"lang"`
 }
 
-// CodeResponse is DTO for response for code run
-type CodeResponse struct {
-	Output string `json:"output"`
-	Error  string `json:"error"`
-}
-
-func execPython(text string) (*CodeResponse, error) {
-	err := ioutil.WriteFile("main.py", []byte(text), 0644)
-	if err != nil {
-		return nil, err
-	}
-	cmd := exec.Command("python3", "main.py")
-	var out bytes.Buffer
-	var errOut bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-	_ = cmd.Run()
-	err = os.Remove("main.py")
-	if err != nil {
-		return nil, err
-	}
-	resp := &CodeResponse{
-		Output: out.String(),
-		Error:  errOut.String(),
-	}
-	return resp, nil
-}
-
-func execCpp(text string) (*CodeResponse, error) {
-	err := ioutil.WriteFile("main.cpp", []byte(text), 0644)
-	if err != nil {
-		return nil, err
-	}
-	cmd := exec.Command("c++", "-o", "main", "main.cpp")
-	var out bytes.Buffer
-	var errOut bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-	_ = cmd.Run()
-	if errOut.Len() != 0 {
-		err = os.Remove("main.cpp")
-		if err != nil {
-			return nil, err
-		}
-		return &CodeResponse{
-			Error: errOut.String(),
-		}, nil
-	}
-	cmd = exec.Command("./main")
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-	_ = cmd.Run()
-	err = os.Remove("main.cpp")
-	err = os.Remove("main")
-
-	return &CodeResponse{
-		Output: out.String(),
-	}, nil
-}
-
-func execJava(text string) (*CodeResponse, error) {
-	err := ioutil.WriteFile("main.java", []byte(text), 0644)
-	if err != nil {
-		return nil, err
-	}
-	cmd := exec.Command("javac", "main.java")
-	var out bytes.Buffer
-	var errOut bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-	_ = cmd.Run()
-	if errOut.Len() != 0 {
-		err = os.Remove("main.java")
-		if err != nil {
-			return nil, err
-		}
-		return &CodeResponse{
-			Error: errOut.String(),
-		}, nil
-	}
-	files, err := ioutil.ReadDir("./")
-	if err != nil {
-		return nil, err
-	}
-
-	unparsedExecName := ""
-	for _, file := range files {
-		if strings.Contains(file.Name(), ".class") {
-			unparsedExecName = file.Name()
-			break
-		}
-	}
-	execName := strings.Split(unparsedExecName, ".")[0]
-	cmd = exec.Command("java", execName)
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-	_ = cmd.Run()
-	err = os.Remove("main.java")
-	err = os.Remove(unparsedExecName)
-
-	return &CodeResponse{
-		Output: out.String(),
-	}, nil
-}
-
-const (
-	PYTHON = "python"
-	JAVA   = "java"
-	CPP    = "c++"
-)
-
 func homeHandlerPost(w http.ResponseWriter, r *http.Request) error {
 	var data CodeRequest
 	err := Unmarshal(&data, r)
@@ -226,16 +113,16 @@ func homeHandlerPost(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	var execFunc func(string) (*CodeResponse, error)
+	var executor execution.Executor
 	switch data.Lang {
-	case PYTHON:
-		execFunc = execPython
-	case JAVA:
-		execFunc = execJava
-	case CPP:
-		execFunc = execCpp
+	case execution.Python:
+		executor = execution.NewPythonExecutor()
+	case execution.Java:
+		executor = execution.NewJavaExecutor()
+	case execution.Cpp:
+		executor = execution.NewCppExecutor()
 	}
-	resp, err := execFunc(data.Text)
+	resp, err := executor.Execute(data.Text)
 	if err != nil {
 		return err
 	}
