@@ -1,7 +1,0 @@
-@host = http://localhost:8888
-
-GET {{host}}
-
-###
-
-GET {{host}}/test
