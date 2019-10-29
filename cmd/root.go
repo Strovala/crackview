@@ -8,22 +8,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "crackview",
-	Short: "Cracking Interview IDE",
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Usage()
-	},
-}
-
-// Execute executes root command
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-}
-
 var configFile string
 
 func init() {
@@ -41,6 +25,22 @@ func initConfig() {
 
 	if err := viper.ReadInConfig(); err != nil {
 		fmt.Printf("unable to read config: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+var rootCmd = &cobra.Command{
+	Use:   "crackview",
+	Short: "Cracking Interview IDE",
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Usage()
+	},
+}
+
+// Execute executes root command
+func Execute() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
 }
