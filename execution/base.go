@@ -88,8 +88,8 @@ func NewPythonExecutor() *PythonExecutor {
 }
 
 func (e *PythonExecutor) Execute(code string) (*CodeResult, error) {
-	result, goOn, err := e.compile(code)
-	if !goOn {
+	result, compiled, err := e.compile(code)
+	if !compiled {
 		return result, err
 	}
 	err = os.Remove(e.FileName)
@@ -97,29 +97,6 @@ func (e *PythonExecutor) Execute(code string) (*CodeResult, error) {
 		return nil, err
 	}
 	return result, nil
-}
-
-func ExecPython(text string) (*CodeResult, error) {
-	fileName := "main.py"
-	err := ioutil.WriteFile(fileName, []byte(text), 0644)
-	if err != nil {
-		return nil, err
-	}
-	cmd := exec.Command("python3", fileName)
-	var out bytes.Buffer
-	var errOut bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-	_ = cmd.Run()
-	err = os.Remove(fileName)
-	if err != nil {
-		return nil, err
-	}
-	resp := &CodeResult{
-		Output: out.String(),
-		Error:  errOut.String(),
-	}
-	return resp, nil
 }
 
 type CppExecutor struct {
@@ -151,8 +128,8 @@ func (e *CppExecutor) generateRunCommandName() {
 }
 
 func (e *CppExecutor) Execute(code string) (*CodeResult, error) {
-	result, goOn, err := e.compile(code)
-	if !goOn {
+	result, compiled, err := e.compile(code)
+	if !compiled {
 		return result, err
 	}
 	out, errOut := e.runCommand(e.RunCommandName)
@@ -170,40 +147,6 @@ func (e *CppExecutor) Execute(code string) (*CodeResult, error) {
 	}, nil
 }
 
-func ExecCpp(text string) (*CodeResult, error) {
-	fileName := "main.cpp"
-	err := ioutil.WriteFile(fileName, []byte(text), 0644)
-	if err != nil {
-		return nil, err
-	}
-	execName := "main"
-	cmd := exec.Command("c++", "-o", execName, fileName)
-	var out bytes.Buffer
-	var errOut bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-	_ = cmd.Run()
-	if errOut.Len() != 0 {
-		err = os.Remove(fileName)
-		if err != nil {
-			return nil, err
-		}
-		return &CodeResult{
-			Error: errOut.String(),
-		}, nil
-	}
-	cmd = exec.Command(fmt.Sprintf("./%v", execName))
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-	_ = cmd.Run()
-	err = os.Remove(fileName)
-	err = os.Remove(execName)
-
-	return &CodeResult{
-		Output: out.String(),
-	}, nil
-}
-
 type JavaExecutor struct {
 	*baseExecutor
 	RunCommandName string
@@ -216,12 +159,7 @@ func NewJavaExecutor() *JavaExecutor {
 	}
 }
 
-func (e *JavaExecutor) Execute(code string) (*CodeResult, error) {
-	result, goOn, err := e.compile(code)
-	if !goOn {
-		return result, err
-	}
-
+func (e *JavaExecutor) classFile() string {
 	files, err := ioutil.ReadDir("./")
 	if err != nil {
 		return nil, err
@@ -234,6 +172,16 @@ func (e *JavaExecutor) Execute(code string) (*CodeResult, error) {
 			break
 		}
 	}
+	return unparsedExecName
+}
+
+func (e *JavaExecutor) Execute(code string) (*CodeResult, error) {
+	result, compiled, err := e.compile(code)
+	if !compiled {
+		return result, err
+	}
+
+	unparsedExecName := e.classFile()
 	execName := strings.Split(unparsedExecName, ".")[0]
 
 	out, errOut := e.runCommand(e.RunCommandName, execName)
@@ -248,52 +196,6 @@ func (e *JavaExecutor) Execute(code string) (*CodeResult, error) {
 	return &CodeResult{
 		Output: out.String(),
 		Error:  errOut.String(),
-	}, nil
-}
-
-func ExecJava(text string) (*CodeResult, error) {
-	fileName := "main.java"
-	err := ioutil.WriteFile(fileName, []byte(text), 0644)
-	if err != nil {
-		return nil, err
-	}
-	cmd := exec.Command("javac", fileName)
-	var out bytes.Buffer
-	var errOut bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-	_ = cmd.Run()
-	if errOut.Len() != 0 {
-		err = os.Remove(fileName)
-		if err != nil {
-			return nil, err
-		}
-		return &CodeResult{
-			Error: errOut.String(),
-		}, nil
-	}
-	files, err := ioutil.ReadDir("./")
-	if err != nil {
-		return nil, err
-	}
-
-	unparsedExecName := ""
-	for _, file := range files {
-		if strings.Contains(file.Name(), ".class") {
-			unparsedExecName = file.Name()
-			break
-		}
-	}
-	execName := strings.Split(unparsedExecName, ".")[0]
-	cmd = exec.Command("java", execName)
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-	_ = cmd.Run()
-	err = os.Remove(fileName)
-	err = os.Remove(unparsedExecName)
-
-	return &CodeResult{
-		Output: out.String(),
 	}, nil
 }
 
