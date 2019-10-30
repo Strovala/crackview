@@ -160,11 +160,7 @@ func NewJavaExecutor() *JavaExecutor {
 }
 
 func (e *JavaExecutor) classFile() string {
-	files, err := ioutil.ReadDir("./")
-	if err != nil {
-		return nil, err
-	}
-
+	files, _ := ioutil.ReadDir("./")
 	unparsedExecName := ""
 	for _, file := range files {
 		if strings.Contains(file.Name(), ".class") {
