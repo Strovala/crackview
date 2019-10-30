@@ -9,11 +9,20 @@ import (
 	"strings"
 )
 
+// Languages constants
+const (
+	Python = "python"
+	Java   = "java"
+	Cpp    = "c++"
+)
+
+// CodeResult have output and error
 type CodeResult struct {
 	Output string `json:"output"`
 	Error  string `json:"error"`
 }
 
+// Executor executes code
 type Executor interface {
 	Execute(code string) (*CodeResult, error)
 }
@@ -56,14 +65,12 @@ func (e *baseExecutor) generateCompileCommandArgs() {
 // should you continue because there is no error returned in case of failed compiling
 // but you shouldn't continue
 func (e *baseExecutor) compile(code string) (*CodeResult, bool, error) {
-	err := e.dumpToFile(code)
-	if err != nil {
+	if err := e.dumpToFile(code); err != nil {
 		return nil, false, err
 	}
 	out, errOut := e.runCommand(e.CompileCommandName, e.CompileCommandArgs...)
 	if errOut.Len() != 0 {
-		err = os.Remove(e.FileName)
-		if err != nil {
+		if err := os.Remove(e.FileName); err != nil {
 			return nil, false, err
 		}
 		return &CodeResult{
@@ -77,34 +84,38 @@ func (e *baseExecutor) compile(code string) (*CodeResult, bool, error) {
 	}, true, nil
 }
 
+// PythonExecutor is Executor for python code
 type PythonExecutor struct {
 	*baseExecutor
 }
 
+// NewPythonExecutor initializes new instance of PythonExecutor
 func NewPythonExecutor() *PythonExecutor {
 	return &PythonExecutor{
 		baseExecutor: newBaseExecutor("python3", "main.py"),
 	}
 }
 
+// Execute executes code
 func (e *PythonExecutor) Execute(code string) (*CodeResult, error) {
 	result, compiled, err := e.compile(code)
 	if !compiled {
 		return result, err
 	}
-	err = os.Remove(e.FileName)
-	if err != nil {
+	if err = os.Remove(e.FileName); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
+// CppExecutor is Executor for c++ code
 type CppExecutor struct {
 	*baseExecutor
 	RunCommandName string
 	ExecutableName string
 }
 
+// NewCppExecutor initializes new instance of CppExecutor
 func NewCppExecutor() *CppExecutor {
 	result := &CppExecutor{
 		baseExecutor:   newBaseExecutor("c++", "main.cpp"),
@@ -127,18 +138,17 @@ func (e *CppExecutor) generateRunCommandName() {
 	e.RunCommandName = fmt.Sprintf("./%v", e.ExecutableName)
 }
 
+// Execute executes code
 func (e *CppExecutor) Execute(code string) (*CodeResult, error) {
 	result, compiled, err := e.compile(code)
 	if !compiled {
 		return result, err
 	}
 	out, errOut := e.runCommand(e.RunCommandName)
-	err = os.Remove(e.FileName)
-	if err != nil {
+	if err = os.Remove(e.FileName); err != nil {
 		return nil, err
 	}
-	err = os.Remove(e.ExecutableName)
-	if err != nil {
+	if err = os.Remove(e.ExecutableName); err != nil {
 		return nil, err
 	}
 	return &CodeResult{
@@ -147,11 +157,13 @@ func (e *CppExecutor) Execute(code string) (*CodeResult, error) {
 	}, nil
 }
 
+// JavaExecutor is Executor for java code
 type JavaExecutor struct {
 	*baseExecutor
 	RunCommandName string
 }
 
+// NewJavaExecutor initializes new instance of JavaExecutor
 func NewJavaExecutor() *JavaExecutor {
 	return &JavaExecutor{
 		baseExecutor:   newBaseExecutor("javac", "main.java"),
@@ -171,6 +183,7 @@ func (e *JavaExecutor) classFile() string {
 	return unparsedExecName
 }
 
+// Execute executes code
 func (e *JavaExecutor) Execute(code string) (*CodeResult, error) {
 	result, compiled, err := e.compile(code)
 	if !compiled {
@@ -181,12 +194,10 @@ func (e *JavaExecutor) Execute(code string) (*CodeResult, error) {
 	execName := strings.Split(unparsedExecName, ".")[0]
 
 	out, errOut := e.runCommand(e.RunCommandName, execName)
-	err = os.Remove(e.FileName)
-	if err != nil {
+	if err = os.Remove(e.FileName); err != nil {
 		return nil, err
 	}
-	err = os.Remove(unparsedExecName)
-	if err != nil {
+	if err = os.Remove(unparsedExecName); err != nil {
 		return nil, err
 	}
 	return &CodeResult{
@@ -194,9 +205,3 @@ func (e *JavaExecutor) Execute(code string) (*CodeResult, error) {
 		Error:  errOut.String(),
 	}, nil
 }
-
-const (
-	Python = "python"
-	Java   = "java"
-	Cpp    = "c++"
-)
