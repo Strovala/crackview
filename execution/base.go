@@ -32,7 +32,7 @@ func newBaseExecutor(commandName, fileName string) *baseExecutor {
 	result.generateCompileCommandArgs()
 	return result
 }
-func (e *baseExecutor) newFile(code string) error {
+func (e *baseExecutor) dumpToFile(code string) error {
 	return ioutil.WriteFile(e.FileName, []byte(code), 0644)
 }
 
@@ -56,7 +56,7 @@ func (e *baseExecutor) generateCompileCommandArgs() {
 // should you continue because there is no error returned in case of failed compiling
 // but you shouldn't continue
 func (e *baseExecutor) compile(code string) (*CodeResult, bool, error) {
-	err := e.newFile(code)
+	err := e.dumpToFile(code)
 	if err != nil {
 		return nil, false, err
 	}
