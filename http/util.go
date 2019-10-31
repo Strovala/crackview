@@ -16,7 +16,10 @@ var (
 	ErrParseJSONBodyType = errors.New("Cannot unmarshal JSON body into type")
 )
 
-func errorHandler(next func(http.ResponseWriter, *http.Request) error) func(w http.ResponseWriter, r *http.Request) {
+// HandlerWithError is handler with error type
+type HandlerWithError func(http.ResponseWriter, *http.Request) error
+
+func errorHandler(next HandlerWithError) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := next(w, r); err != nil {
 			JSONErrorResponse(w, err.Error(), 500)
@@ -24,7 +27,7 @@ func errorHandler(next func(http.ResponseWriter, *http.Request) error) func(w ht
 	}
 }
 
-func serializeToString(data interface{}) (s string) {
+func serializeToString(data interface{}) string {
 	var b []byte
 	var err error
 	b, err = json.MarshalIndent(data, "", "\t")
@@ -84,7 +87,7 @@ func JSONRecoverer(next http.Handler) http.Handler {
 			if rvr := recover(); rvr != nil {
 				fmt.Fprintf(os.Stderr, "Panic: %+v\n", rvr)
 				debug.PrintStack()
-				JSONResponse(w, "Unexpected error occurred", http.StatusInternalServerError)
+				JSONErrorResponse(w, "Unexpected error occurred", http.StatusInternalServerError)
 				return
 			}
 		}()
