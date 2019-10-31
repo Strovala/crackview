@@ -10,16 +10,15 @@ import (
 	"runtime/debug"
 )
 
+type handlerWithError func(http.ResponseWriter, *http.Request) error
+
 // Errors when parsing JSON body
 var (
 	ErrParseJSONBody     = errors.New("Unable to parse JSON body")
 	ErrParseJSONBodyType = errors.New("Cannot unmarshal JSON body into type")
 )
 
-// HandlerWithError is handler with error type
-type HandlerWithError func(http.ResponseWriter, *http.Request) error
-
-func errorHandler(next HandlerWithError) func(w http.ResponseWriter, r *http.Request) {
+func errorHandler(next handlerWithError) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := next(w, r); err != nil {
 			JSONErrorResponse(w, err.Error(), 500)
