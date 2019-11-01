@@ -1,0 +1,1 @@
+Map<%v, %v> %v = new HashMap<%v, %v>(){{%v}};
