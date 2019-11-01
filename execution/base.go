@@ -13,7 +13,7 @@ import (
 const (
 	Python = "python"
 	Java   = "java"
-	Cpp    = "c++"
+	Cpp    = "cpp"
 )
 
 // CodeResult have output and error
