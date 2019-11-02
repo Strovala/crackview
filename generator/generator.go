@@ -9,12 +9,13 @@ import (
 )
 
 const (
-	templatesPath    = "generator/templates"
-	arrayTemplate    = "array.txt"
-	setTemplate      = "set.txt"
-	simpleTemplate   = "simple.txt"
-	mapTemplate      = "map.txt"
-	solutionTemplate = "solution.txt"
+	templatesPath     = "generator/templates"
+	arrayTemplate     = "array.txt"
+	setTemplate       = "set.txt"
+	simpleTemplate    = "simple.txt"
+	mapTemplate       = "map.txt"
+	inputArgsTemplate = "input_args.txt"
+	mainTemplate      = "main.txt"
 )
 
 const (
@@ -125,6 +126,7 @@ type Language interface {
 	GenerateAddToArrayTemplate(name string, val interface{}, valType string) string
 	GenerateMapTemplate(argKeyType, argValueType string, name, value string) string
 	GenerateAddToMapTemplate(name string, keyValue interface{}, keyType string, val interface{}, valType string) string
+	Generate(inputArgs string, solution string)
 }
 
 type language struct {
@@ -132,6 +134,7 @@ type language struct {
 	addToSetTemplate   string
 	addToArrayTemplate string
 	addToMapTemplate   string
+	mainName           string
 }
 
 func (l *language) getTemplate(template string) string {
@@ -180,6 +183,12 @@ func (l *python) GenerateMapTemplate(argKeyType, argValueType string, name, valu
 
 func (l *python) GenerateAddToMapTemplate(name string, keyValue interface{}, keyType string, val interface{}, valType string) string {
 	return fmt.Sprintf(l.addToMapTemplate, l.GenerateValue(keyValue, keyType), l.GenerateValue(val, valType))
+}
+
+func (l *python) Generate(inputArgs string, solution string) {
+	template := l.getTemplate(mainTemplate)
+	code := fmt.Sprintf(template, solution, inputArgs)
+	_ = ioutil.WriteFile(l.mainName, []byte(code), 0644)
 }
 
 type java struct {
@@ -235,6 +244,12 @@ func (l *java) GenerateAddToMapTemplate(name string, keyValue interface{}, keyTy
 	return fmt.Sprintf(l.addToMapTemplate, l.GenerateValue(keyValue, keyType), l.GenerateValue(val, valType))
 }
 
+func (l *java) Generate(inputArgs string, solution string) {
+	template := l.getTemplate(mainTemplate)
+	code := fmt.Sprintf(template, inputArgs, solution)
+	_ = ioutil.WriteFile(l.mainName, []byte(code), 0644)
+}
+
 type cpp struct {
 	*language
 }
@@ -284,12 +299,19 @@ func (l *cpp) GenerateAddToMapTemplate(name string, keyValue interface{}, keyTyp
 	return fmt.Sprintf(l.addToMapTemplate, name, l.GenerateValue(keyValue, keyType), l.GenerateValue(val, valType))
 }
 
+func (l *cpp) Generate(inputArgs string, solution string) {
+	template := l.getTemplate(mainTemplate)
+	code := fmt.Sprintf(template, solution, inputArgs)
+	_ = ioutil.WriteFile(l.mainName, []byte(code), 0644)
+}
+
 var (
 	pythonObj = &python{language: &language{
 		name:               execution.Python,
 		addToSetTemplate:   addToSetTemplatePython,
 		addToArrayTemplate: addToArrayTemplatePython,
 		addToMapTemplate:   addToMapTemplatePython,
+		mainName:           execution.PythonMainName,
 	}}
 
 	javaObj = &java{language: &language{
@@ -297,6 +319,7 @@ var (
 		addToSetTemplate:   addToSetTemplateJava,
 		addToArrayTemplate: addToArrayTemplateJava,
 		addToMapTemplate:   addToMapTemplateJava,
+		mainName:           execution.JavaMainName,
 	}}
 
 	cppObj = &cpp{language: &language{
@@ -304,25 +327,26 @@ var (
 		addToSetTemplate:   addToSetTemplateCpp,
 		addToArrayTemplate: addToArrayTemplateCpp,
 		addToMapTemplate:   addToMapTemplateCpp,
+		mainName:           execution.CppMainName,
 	}}
 )
 
 // Generate generates code snippet for executing solution with provided arguments
-func Generate(args []Argument, lang string) string {
-	template := getTemplate(lang, solutionTemplate)
+func Generate(args []Argument, lang string, solution string) {
+	template := getTemplate(lang, inputArgsTemplate)
 	var argsInit strings.Builder
 	var argsPass strings.Builder
+	var langObj Language
+	switch lang {
+	case execution.Python:
+		langObj = pythonObj
+	case execution.Java:
+		langObj = javaObj
+	case execution.Cpp:
+		langObj = cppObj
+	}
 	for i, arg := range args {
-		argName := fmt.Sprintf("arg_%v", i)
-		var langObj Language
-		switch lang {
-		case execution.Python:
-			langObj = pythonObj
-		case execution.Java:
-			langObj = javaObj
-		case execution.Cpp:
-			langObj = cppObj
-		}
+		argName := fmt.Sprintf("input_%v", i)
 		argInit := arg.Generate(argName, langObj)
 		fmt.Fprintf(&argsInit, "%v\n", argInit)
 		if i != len(args)-1 {
@@ -331,5 +355,6 @@ func Generate(args []Argument, lang string) string {
 			fmt.Fprintf(&argsPass, "%v", argName)
 		}
 	}
-	return fmt.Sprintf(template, argsInit.String(), argsPass.String())
+	inputArgs := fmt.Sprintf(template, argsInit.String(), argsPass.String())
+	langObj.Generate(inputArgs, solution)
 }

@@ -1,0 +1,48 @@
+import java.util.Set;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.HashSet;
+
+class Main {
+    public static void main( String []args ) {
+        int input_0 = 5;
+int[] input_1 = new int[]{1,3,5,};
+Map<Integer, Integer> input_2 = new HashMap<Integer, Integer>(){{put(1,2);put(3,4);}};
+Map<String, Boolean> input_3 = new HashMap<String, Boolean>(){{put("bar",true);put("foo",false);}};
+Set<Double> input_4 = new HashSet<Double>(){{add(3.4);add(5.6);}};
+
+int result = Solution.code(input_0,input_1,input_2,input_3,input_4);
+    }
+}
+
+class Solution {
+    public static int code(int k, int[] nums, Map<Integer, Integer> aMap, Map<String, Boolean> bMap, Set<Double> aSet) {
+        System.out.println(k);
+        for (int i = 0; i < nums.length; i++)
+            System.out.print(nums[i] + " ");
+        System.out.println();
+
+        for (Map.Entry<Integer, Integer> entry : aMap.entrySet()) {
+            System.out.print(entry.getKey() + ": " + entry.getValue() + " ");
+        }
+        System.out.println();
+
+        for (Map.Entry<String, Boolean> entry : bMap.entrySet()) {
+            System.out.print(entry.getKey() + ": " + entry.getValue() + " ");
+        }
+        System.out.println();
+
+        for(Double entry : aSet){
+           System.out.print(entry + " ");
+        }
+        System.out.println();
+        return 0;
+    }
+}
+
+// input.txt
+// 5 => int
+// [1, 3, 5] => array<int> 
+// {1: 2, 3: 4} => map<int,int>
+// {"foo": false, "bar": true} => map<string,bool>
+// (3.4, 5.6) => set<float>
