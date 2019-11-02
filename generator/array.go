@@ -12,22 +12,21 @@ const (
 )
 
 type array struct {
-	*baseArgument
+	*argument
 }
 
 func NewArray(value interface{}) *array {
 	result := &array{
-		baseArgument: &baseArgument{
+		argument: &argument{
 			value: value,
 		},
 	}
-	result.Resolve()
+	result.ResolveType()
 	return result
 }
 
-func (p *array) Resolve() {
-	reflectType := getReflectType(p.value)
-	inputType := reflectType.String()
+func (p *array) ResolveType() {
+	inputType := reflect.TypeOf(p.value).String()
 	p.argType = inputType[2:]
 }
 
@@ -35,8 +34,8 @@ func (p *array) Generate(name string, lang Language) string {
 	var builder strings.Builder
 	val := reflect.ValueOf(p.value)
 	for i := 0; i < val.Len(); i++ {
-		addToSet := lang.GenerateAddToArrayTemplate(p, name, lang.Value(val.Index(i), p.Type()))
+		addToSet := lang.GenerateAddToArrayTemplate(name, val.Index(i), p.argType)
 		builder.WriteString(addToSet)
 	}
-	return lang.GenerateArrayTemplate(p, name, builder.String())
+	return lang.GenerateArrayTemplate(p.argType, name, builder.String())
 }

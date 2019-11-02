@@ -1,25 +1,26 @@
 package generator
 
+import "reflect"
+
 type simple struct {
-	*baseArgument
+	*argument
 }
 
 func NewSimple(value interface{}) *simple {
 	result := &simple{
-		baseArgument: &baseArgument{
+		argument: &argument{
 			value: value,
 		},
 	}
-	result.Resolve()
+	result.ResolveType()
 	return result
 }
 
-func (p *simple) Resolve() {
-	reflectType := getReflectType(p.value)
-	inputType := reflectType.String()
+func (p *simple) ResolveType() {
+	inputType := reflect.TypeOf(p.value).String()
 	p.argType = inputType
 }
 
 func (p *simple) Generate(name string, lang Language) string {
-	return lang.GenerateSimpleTemplate(p, name, lang.Value(p.value, p.Type()))
+	return lang.GenerateSimpleTemplate(name, p.value, p.argType)
 }

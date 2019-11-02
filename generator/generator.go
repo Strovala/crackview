@@ -3,7 +3,6 @@ package generator
 import (
 	"fmt"
 	"io/ioutil"
-	"reflect"
 	"strings"
 
 	"github.com/Strovala/crackview/execution"
@@ -63,14 +62,6 @@ func capitalizeFirstLetter(value string) string {
 	return strings.Title(strings.ToLower(value))
 }
 
-func getCppType(valueType string) string {
-	javaType, ok := cppLookUpType[valueType]
-	if !ok {
-		javaType = valueType
-	}
-	return javaType
-}
-
 func javaWrapperClass(valueType string) string {
 	javaType, ok := javaLookUpWrapperClass[valueType]
 	if !ok {
@@ -79,12 +70,12 @@ func javaWrapperClass(valueType string) string {
 	return javaType
 }
 
-func getJavaType(valueType string) string {
-	javaType, ok := javaLookUpType[valueType]
+func getType(lookUp map[string]string, valueType string) string {
+	langType, ok := lookUp[valueType]
 	if !ok {
-		javaType = valueType
+		langType = valueType
 	}
-	return javaType
+	return langType
 }
 
 func valuePython(value interface{}, valueType string) string {
@@ -108,244 +99,207 @@ func getTemplate(lang, file string) string {
 	return string(dat)
 }
 
-func getReflectType(value interface{}) reflect.Type {
-	return reflect.TypeOf(value)
-}
-
+// Argument is interface for generating code snippet for specific argument with value and type
 type Argument interface {
+	ResolveType()
 	Generate(name string, lang Language) string
-
-	Type() string
-	KeyType() string
-	ValueType() string
-	Value() interface{}
 }
 
-type typeResolver interface {
-	Resolve()
-}
-
-type baseArgument struct {
+type argument struct {
 	argType   string
 	keyType   string
 	valueType string
 	value     interface{}
 }
 
-func (b *baseArgument) Generate(name string, lang Language) string {
-	return "Not Implemented"
-}
-
-func (b *baseArgument) Type() string {
-	return b.argType
-}
-
-func (b *baseArgument) KeyType() string {
-	return b.keyType
-}
-
-func (b *baseArgument) ValueType() string {
-	return b.valueType
-}
-
-func (b *baseArgument) Value() interface{} {
-	return b.value
-}
-
-// func Generate(args []Argument, lang string) string {
-// 	template := getTemplate(lang, solutionTemplate)
-// 	var argsInit strings.Builder
-// 	var argsPass strings.Builder
-// 	for i, arg := range args {
-// 		argName := fmt.Sprintf("arg_%v", i)
-// 		var argInit string
-// 		switch lang {
-// 		case execution.Python:
-// 			argInit = arg.GeneratePython(argName)
-// 		case execution.Java:
-// 			argInit = arg.GenerateJava(argName)
-// 		case execution.Cpp:
-// 			argInit = arg.GenerateCpp(argName)
-// 		}
-// 		fmt.Fprintf(&argsInit, "%v\n", argInit)
-// 		if i != len(args)-1 {
-// 			fmt.Fprintf(&argsPass, "%v,", argName)
-// 		} else {
-// 			fmt.Fprintf(&argsPass, "%v", argName)
-// 		}
-// 	}
-// 	return fmt.Sprintf(template, argsInit.String(), argsPass.String())
-// }
-
-// TODO: Maybe something like this
+// Language is interface for generating code snippet for specific language
 type Language interface {
-	Value(val interface{}, valType string) string
-	GenerateSimpleTemplate(arg Argument, name, value string) string
-	GenerateSetTemplate(arg Argument, name, value string) string
-	GenerateAddToSetTemplate(arg Argument, name string, value string) string
-	GenerateArrayTemplate(arg Argument, name, value string) string
-	GenerateAddToArrayTemplate(arg Argument, name string, value string) string
-	GenerateMapTemplate(arg Argument, name, value string) string
-	GenerateAddToMapTemplate(arg Argument, name string, keyValue string, Value string) string
+	// Returns type of given type in code ex. Type("string") -> String in Java
+	Type(valType string) string
+	// Returns value of given type in code ex. GenerateValue("foo", "string") -> "\"foo\""
+	GenerateValue(val interface{}, valType string) string
+	GenerateSimpleTemplate(name, val interface{}, valType string) string
+	GenerateSetTemplate(argType string, name, value string) string
+	GenerateAddToSetTemplate(name string, val interface{}, valType string) string
+	GenerateArrayTemplate(argType string, name, value string) string
+	GenerateAddToArrayTemplate(name string, val interface{}, valType string) string
+	GenerateMapTemplate(argKeyType, argValueType string, name, value string) string
+	GenerateAddToMapTemplate(name string, keyValue interface{}, keyType string, val interface{}, valType string) string
 }
 
-type baseLang struct {
+type language struct {
 	name               string
 	addToSetTemplate   string
 	addToArrayTemplate string
 	addToMapTemplate   string
 }
 
-func (l *baseLang) getTemplate(template string) string {
+func (l *language) getTemplate(template string) string {
 	return getTemplate(l.name, template)
 }
 
 type python struct {
-	*baseLang
+	*language
 }
 
-func (l *python) Value(val interface{}, valType string) string {
+func (l *python) Type(valType string) string {
+	return ""
+}
+
+func (l *python) GenerateValue(val interface{}, valType string) string {
 	return valuePython(val, valType)
 }
 
-func (l *python) GenerateSimpleTemplate(arg Argument, name, value string) string {
+func (l *python) GenerateSimpleTemplate(name, val interface{}, valType string) string {
 	template := l.getTemplate(simpleTemplate)
-	return fmt.Sprintf(template, name, value)
+	return fmt.Sprintf(template, name, l.GenerateValue(val, valType))
 }
 
-func (l *python) GenerateArrayTemplate(arg Argument, name, value string) string {
+func (l *python) GenerateArrayTemplate(argType string, name, value string) string {
 	template := l.getTemplate(arrayTemplate)
 	return fmt.Sprintf(template, name, value)
 }
 
-func (l *python) GenerateAddToArrayTemplate(arg Argument, name string, value string) string {
-	return fmt.Sprintf(l.addToArrayTemplate, value)
+func (l *python) GenerateAddToArrayTemplate(name string, val interface{}, valType string) string {
+	return fmt.Sprintf(l.addToArrayTemplate, l.GenerateValue(val, valType))
 }
 
-func (l *python) GenerateSetTemplate(arg Argument, name, value string) string {
+func (l *python) GenerateSetTemplate(argType string, name, value string) string {
 	template := l.getTemplate(setTemplate)
 	return fmt.Sprintf(template, name, value)
 }
 
-func (l *python) GenerateAddToSetTemplate(arg Argument, name string, value string) string {
-	return fmt.Sprintf(l.addToSetTemplate, value)
+func (l *python) GenerateAddToSetTemplate(name string, val interface{}, valType string) string {
+	return fmt.Sprintf(l.addToSetTemplate, l.GenerateValue(val, valType))
 }
 
-func (l *python) GenerateMapTemplate(arg Argument, name, value string) string {
+func (l *python) GenerateMapTemplate(argKeyType, argValueType string, name, value string) string {
 	template := l.getTemplate(mapTemplate)
 	return fmt.Sprintf(template, name, value)
 }
 
-func (l *python) GenerateAddToMapTemplate(arg Argument, name string, keyValue string, value string) string {
-	return fmt.Sprintf(l.addToMapTemplate, keyValue, value)
+func (l *python) GenerateAddToMapTemplate(name string, keyValue interface{}, keyType string, val interface{}, valType string) string {
+	return fmt.Sprintf(l.addToMapTemplate, l.GenerateValue(keyValue, keyType), l.GenerateValue(val, valType))
 }
 
 type java struct {
-	*baseLang
+	*language
 }
 
-func (l *java) Value(val interface{}, valType string) string {
+func (l *java) wrapperClass(valType string) string {
+	return javaWrapperClass(l.Type(valType))
+}
+
+func (l *java) Type(valType string) string {
+	return getType(javaLookUpType, valType)
+}
+
+func (l *java) GenerateValue(val interface{}, valType string) string {
 	return value(val, valType)
 }
 
-func (l *java) GenerateSimpleTemplate(arg Argument, name, value string) string {
+func (l *java) GenerateSimpleTemplate(name, val interface{}, valType string) string {
 	template := l.getTemplate(simpleTemplate)
-	javaType := getJavaType(arg.Type())
-	return fmt.Sprintf(template, javaType, name, value)
+	langType := l.Type(valType)
+	return fmt.Sprintf(template, langType, name, l.GenerateValue(val, valType))
 }
 
-func (l *java) GenerateArrayTemplate(arg Argument, name, value string) string {
+func (l *java) GenerateArrayTemplate(argType string, name, value string) string {
 	template := l.getTemplate(arrayTemplate)
-	javaType := getJavaType(arg.Type())
-	return fmt.Sprintf(template, javaType, name, javaType, value)
+	langType := l.Type(argType)
+	return fmt.Sprintf(template, langType, name, langType, value)
 }
 
-func (l *java) GenerateAddToArrayTemplate(arg Argument, name string, value string) string {
-	return fmt.Sprintf(l.addToArrayTemplate, value)
+func (l *java) GenerateAddToArrayTemplate(name string, val interface{}, valType string) string {
+	return fmt.Sprintf(l.addToArrayTemplate, l.GenerateValue(val, valType))
 }
 
-func (l *java) GenerateSetTemplate(arg Argument, name, value string) string {
+func (l *java) GenerateSetTemplate(argType string, name, value string) string {
 	template := l.getTemplate(setTemplate)
-	javaType := javaWrapperClass(getJavaType(arg.Type()))
-	return fmt.Sprintf(template, javaType, name, javaType, value)
+	langType := l.wrapperClass(argType)
+	return fmt.Sprintf(template, langType, name, langType, value)
 }
 
-func (l *java) GenerateAddToSetTemplate(arg Argument, name string, value string) string {
-	return fmt.Sprintf(l.addToSetTemplate, value)
+func (l *java) GenerateAddToSetTemplate(name string, val interface{}, valType string) string {
+	return fmt.Sprintf(l.addToSetTemplate, l.GenerateValue(val, valType))
 }
 
-func (l *java) GenerateMapTemplate(arg Argument, name, value string) string {
+func (l *java) GenerateMapTemplate(argKeyType, argValueType string, name, value string) string {
 	template := l.getTemplate(mapTemplate)
-	javaKeyType := javaWrapperClass(getJavaType(arg.KeyType()))
-	javaValueType := javaWrapperClass(getJavaType(arg.ValueType()))
-	return fmt.Sprintf(template, javaKeyType, javaValueType, name, javaKeyType, javaValueType, value)
+	langKeyType := l.wrapperClass(argKeyType)
+	langValueType := l.wrapperClass(argValueType)
+	return fmt.Sprintf(template, langKeyType, langValueType, name, langKeyType, langValueType, value)
 }
 
-func (l *java) GenerateAddToMapTemplate(arg Argument, name string, keyValue string, value string) string {
-	return fmt.Sprintf(l.addToMapTemplate, keyValue, value)
+func (l *java) GenerateAddToMapTemplate(name string, keyValue interface{}, keyType string, val interface{}, valType string) string {
+	return fmt.Sprintf(l.addToMapTemplate, l.GenerateValue(keyValue, keyType), l.GenerateValue(val, valType))
 }
 
 type cpp struct {
-	*baseLang
+	*language
 }
 
-func (l *cpp) Value(val interface{}, valType string) string {
+func (l *cpp) Type(valType string) string {
+	return getType(cppLookUpType, valType)
+}
+
+func (l *cpp) GenerateValue(val interface{}, valType string) string {
 	return value(val, valType)
 }
 
-func (l *cpp) GenerateSimpleTemplate(arg Argument, name, value string) string {
+func (l *cpp) GenerateSimpleTemplate(name, val interface{}, valType string) string {
 	template := l.getTemplate(simpleTemplate)
-	cppType := getCppType(arg.Type())
-	return fmt.Sprintf(template, cppType, name, value)
+	langType := l.Type(valType)
+	return fmt.Sprintf(template, langType, name, l.GenerateValue(val, valType))
 }
 
-func (l *cpp) GenerateArrayTemplate(arg Argument, name, value string) string {
+func (l *cpp) GenerateArrayTemplate(argType string, name, value string) string {
 	template := l.getTemplate(arrayTemplate)
-	cppType := getCppType(arg.Type())
-	return fmt.Sprintf(template, cppType, name, value)
+	langType := l.Type(argType)
+	return fmt.Sprintf(template, langType, name, value)
 }
 
-func (l *cpp) GenerateAddToArrayTemplate(arg Argument, name string, value string) string {
-	return fmt.Sprintf(l.addToArrayTemplate, name, value)
+func (l *cpp) GenerateAddToArrayTemplate(name string, val interface{}, valType string) string {
+	return fmt.Sprintf(l.addToArrayTemplate, name, l.GenerateValue(val, valType))
 }
 
-func (l *cpp) GenerateSetTemplate(arg Argument, name, value string) string {
+func (l *cpp) GenerateSetTemplate(argType string, name, value string) string {
 	template := l.getTemplate(setTemplate)
-	cppType := getCppType(arg.Type())
-	return fmt.Sprintf(template, cppType, name, value)
+	langType := l.Type(argType)
+	return fmt.Sprintf(template, langType, name, value)
 }
 
-func (l *cpp) GenerateAddToSetTemplate(arg Argument, name string, value string) string {
-	return fmt.Sprintf(l.addToSetTemplate, name, value)
+func (l *cpp) GenerateAddToSetTemplate(name string, val interface{}, valType string) string {
+	return fmt.Sprintf(l.addToSetTemplate, name, l.GenerateValue(val, valType))
 }
 
-func (l *cpp) GenerateMapTemplate(arg Argument, name, value string) string {
+func (l *cpp) GenerateMapTemplate(argKeyType, argValueType string, name, value string) string {
 	template := l.getTemplate(mapTemplate)
-	cppKeyType := getCppType(arg.KeyType())
-	cppValueType := getCppType(arg.ValueType())
-	return fmt.Sprintf(template, cppKeyType, cppValueType, name, value)
+	langKeyType := l.Type(argKeyType)
+	langValueType := l.Type(argValueType)
+	return fmt.Sprintf(template, langKeyType, langValueType, name, value)
 }
 
-func (l *cpp) GenerateAddToMapTemplate(arg Argument, name string, keyValue string, value string) string {
-	return fmt.Sprintf(l.addToMapTemplate, name, keyValue, value)
+func (l *cpp) GenerateAddToMapTemplate(name string, keyValue interface{}, keyType string, val interface{}, valType string) string {
+	return fmt.Sprintf(l.addToMapTemplate, name, l.GenerateValue(keyValue, keyType), l.GenerateValue(val, valType))
 }
 
 var (
-	pythonObj = &python{baseLang: &baseLang{
+	pythonObj = &python{language: &language{
 		name:               execution.Python,
 		addToSetTemplate:   addToSetTemplatePython,
 		addToArrayTemplate: addToArrayTemplatePython,
 		addToMapTemplate:   addToMapTemplatePython,
 	}}
 
-	javaObj = &java{baseLang: &baseLang{
+	javaObj = &java{language: &language{
 		name:               execution.Java,
 		addToSetTemplate:   addToSetTemplateJava,
 		addToArrayTemplate: addToArrayTemplateJava,
 		addToMapTemplate:   addToMapTemplateJava,
 	}}
 
-	cppObj = &cpp{baseLang: &baseLang{
+	cppObj = &cpp{language: &language{
 		name:               execution.Cpp,
 		addToSetTemplate:   addToSetTemplateCpp,
 		addToArrayTemplate: addToArrayTemplateCpp,
@@ -353,6 +307,7 @@ var (
 	}}
 )
 
+// Generate generates code snippet for executing solution with provided arguments
 func Generate(args []Argument, lang string) string {
 	template := getTemplate(lang, solutionTemplate)
 	var argsInit strings.Builder
@@ -369,7 +324,6 @@ func Generate(args []Argument, lang string) string {
 			langObj = cppObj
 		}
 		argInit := arg.Generate(argName, langObj)
-
 		fmt.Fprintf(&argsInit, "%v\n", argInit)
 		if i != len(args)-1 {
 			fmt.Fprintf(&argsPass, "%v,", argName)

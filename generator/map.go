@@ -12,22 +12,21 @@ const (
 )
 
 type inputMap struct {
-	*baseArgument
+	*argument
 }
 
 func NewMap(value interface{}) *inputMap {
 	result := &inputMap{
-		baseArgument: &baseArgument{
+		argument: &argument{
 			value: value,
 		},
 	}
-	result.Resolve()
+	result.ResolveType()
 	return result
 }
 
-func (p *inputMap) Resolve() {
-	reflectType := getReflectType(p.value)
-	inputType := reflectType.String()
+func (p *inputMap) ResolveType() {
+	inputType := reflect.TypeOf(p.value).String()
 	types := strings.Split(inputType, "]")
 	p.keyType = types[0][4:]
 	p.valueType = types[1]
@@ -38,8 +37,8 @@ func (p *inputMap) Generate(name string, lang Language) string {
 	val := reflect.ValueOf(p.value)
 	for _, k := range val.MapKeys() {
 		v := val.MapIndex(k)
-		addToMap := lang.GenerateAddToMapTemplate(p, name, lang.Value(k, p.KeyType()), lang.Value(v, p.ValueType()))
+		addToMap := lang.GenerateAddToMapTemplate(name, k, p.keyType, v, p.valueType)
 		builder.WriteString(addToMap)
 	}
-	return lang.GenerateMapTemplate(p, name, builder.String())
+	return lang.GenerateMapTemplate(p.keyType, p.valueType, name, builder.String())
 }
