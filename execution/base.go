@@ -23,6 +23,14 @@ const (
 	CppMainName    = "main.cpp"
 )
 
+func hasError(errString string, keyword string) bool {
+	lowerErrString := strings.ToLower(errString)
+	if strings.Contains(lowerErrString, keyword) {
+		return true
+	}
+	return false
+}
+
 // CodeResult have output and error
 type CodeResult struct {
 	Output string `json:"output"`
@@ -32,6 +40,7 @@ type CodeResult struct {
 // Executor executes code
 type Executor interface {
 	Execute() (*CodeResult, error)
+	HasError(errString string) bool
 }
 
 type baseExecutor struct {
@@ -65,35 +74,15 @@ func (e *baseExecutor) generateCompileCommandArgs() {
 	}
 }
 
-func hasError(errString string) bool {
-	lowerErrString := strings.ToLower(errString)
-	if strings.Contains(lowerErrString, "error") {
-		return true
-	}
-	if strings.Contains(lowerErrString, "traceback") {
-		return true
-	}
-	return false
-}
-
 // compile return type is a little bit odd, middle argument is representing
 // should you continue because there is no error returned in case of failed compiling
 // but you shouldn't continue
-func (e *baseExecutor) compile() (*CodeResult, bool, error) {
+func (e *baseExecutor) compile() *CodeResult {
 	out, errOut := e.runCommand(e.CompileCommandName, e.CompileCommandArgs...)
-	if hasError(errOut.String()) {
-		if err := os.Remove(e.FileName); err != nil {
-			return nil, false, err
-		}
-		return &CodeResult{
-			Output: out.String(),
-			Error:  errOut.String(),
-		}, false, nil
-	}
 	return &CodeResult{
 		Output: out.String(),
 		Error:  errOut.String(),
-	}, true, nil
+	}
 }
 
 // PythonExecutor is Executor for python code
@@ -108,13 +97,21 @@ func NewPythonExecutor() *PythonExecutor {
 	}
 }
 
+// HasError check for compile error
+func (e *PythonExecutor) HasError(errString string) bool {
+	return hasError(errString, "traceback")
+}
+
 // Execute executes code
 func (e *PythonExecutor) Execute() (*CodeResult, error) {
-	result, compiled, err := e.compile()
-	if !compiled {
-		return result, err
+	result := e.compile()
+	if e.HasError(result.Error) {
+		if err := os.Remove(e.FileName); err != nil {
+			return nil, err
+		}
+		return result, nil
 	}
-	if err = os.Remove(e.FileName); err != nil {
+	if err := os.Remove(e.FileName); err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -150,17 +147,25 @@ func (e *CppExecutor) generateRunCommandName() {
 	e.RunCommandName = fmt.Sprintf("./%v", e.ExecutableName)
 }
 
+// HasError check for compile error
+func (e *CppExecutor) HasError(errString string) bool {
+	return hasError(errString, "error")
+}
+
 // Execute executes code
 func (e *CppExecutor) Execute() (*CodeResult, error) {
-	result, compiled, err := e.compile()
-	if !compiled {
-		return result, err
+	result := e.compile()
+	if e.HasError(result.Error) {
+		if err := os.Remove(e.FileName); err != nil {
+			return nil, err
+		}
+		return result, nil
 	}
 	out, errOut := e.runCommand(e.RunCommandName)
-	if err = os.Remove(e.FileName); err != nil {
+	if err := os.Remove(e.FileName); err != nil {
 		return nil, err
 	}
-	if err = os.Remove(e.ExecutableName); err != nil {
+	if err := os.Remove(e.ExecutableName); err != nil {
 		return nil, err
 	}
 	return &CodeResult{
@@ -173,6 +178,7 @@ func (e *CppExecutor) Execute() (*CodeResult, error) {
 type JavaExecutor struct {
 	*baseExecutor
 	RunCommandName string
+	RunCommandArgs []string
 }
 
 // NewJavaExecutor initializes new instance of JavaExecutor
@@ -180,6 +186,7 @@ func NewJavaExecutor() *JavaExecutor {
 	return &JavaExecutor{
 		baseExecutor:   newBaseExecutor("javac", JavaMainName),
 		RunCommandName: "java",
+		RunCommandArgs: []string{"Main"},
 	}
 }
 
@@ -194,25 +201,40 @@ func (e *JavaExecutor) classFiles() []string {
 	return fileNames
 }
 
-func (e *JavaExecutor) removeClassFiles() {
+func (e *JavaExecutor) removeClassFiles() error {
 	classNames := e.classFiles()
 	for _, className := range classNames {
-		os.Remove(className)
+		if err := os.Remove(className); err != nil {
+			return err
+		}
 	}
+	return nil
+}
+
+// HasError check for compile error
+func (e *JavaExecutor) HasError(errString string) bool {
+	return hasError(errString, "error")
 }
 
 // Execute executes code
 func (e *JavaExecutor) Execute() (*CodeResult, error) {
-	result, compiled, err := e.compile()
-	if !compiled {
-		e.removeClassFiles()
-		return result, err
+	result := e.compile()
+	if e.HasError(result.Error) {
+		if err := e.removeClassFiles(); err != nil {
+			return nil, err
+		}
+		if err := os.Remove(e.FileName); err != nil {
+			return nil, err
+		}
+		return result, nil
 	}
-	out, errOut := e.runCommand(e.RunCommandName, "Main")
-	if err = os.Remove(e.FileName); err != nil {
+	out, errOut := e.runCommand(e.RunCommandName, e.RunCommandArgs...)
+	if err := e.removeClassFiles(); err != nil {
 		return nil, err
 	}
-	e.removeClassFiles()
+	if err := os.Remove(e.FileName); err != nil {
+		return nil, err
+	}
 	return &CodeResult{
 		Output: out.String(),
 		Error:  errOut.String(),
