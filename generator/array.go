@@ -15,13 +15,13 @@ const (
 )
 
 type array struct {
-	*base
+	*baseArgument
 }
 
 func NewArray(value interface{}) *array {
 	result := &array{
-		base: &base{
-			Value: value,
+		baseArgument: &baseArgument{
+			value: value,
 		},
 	}
 	result.Resolve()
@@ -29,9 +29,9 @@ func NewArray(value interface{}) *array {
 }
 
 func (p *array) Resolve() {
-	reflectType := getReflectType(p.Value)
+	reflectType := getReflectType(p.value)
 	inputType := reflectType.String()
-	p.Type = inputType[2:]
+	p.argType = inputType[2:]
 }
 
 func (p *array) GeneratePython(name string) string {
@@ -39,7 +39,7 @@ func (p *array) GeneratePython(name string) string {
 	var builder strings.Builder
 	val := reflect.ValueOf(p.Value)
 	for i := 0; i < val.Len(); i++ {
-		fmt.Fprintf(&builder, addToArrayTemplatePython, valuePython(val.Index(i), p.Type))
+		fmt.Fprintf(&builder, addToArrayTemplatePython, valuePython(val.Index(i), p.Type()))
 	}
 	return fmt.Sprintf(template, name, builder.String())
 }
@@ -49,9 +49,9 @@ func (p *array) GenerateJava(name string) string {
 	var builder strings.Builder
 	val := reflect.ValueOf(p.Value)
 	for i := 0; i < val.Len(); i++ {
-		fmt.Fprintf(&builder, addToArrayTemplateJava, value(val.Index(i), p.Type))
+		fmt.Fprintf(&builder, addToArrayTemplateJava, value(val.Index(i), p.Type()))
 	}
-	javaType := getJavaType(p.Type)
+	javaType := getJavaType(p.Type())
 	return fmt.Sprintf(template, javaType, name, javaType, builder.String())
 }
 
@@ -60,8 +60,18 @@ func (p *array) GenerateCpp(name string) string {
 	var builder strings.Builder
 	val := reflect.ValueOf(p.Value)
 	for i := 0; i < val.Len(); i++ {
-		fmt.Fprintf(&builder, addToArrayTemplateCpp, name, value(val.Index(i), p.Type))
+		fmt.Fprintf(&builder, addToArrayTemplateCpp, name, value(val.Index(i), p.Type()))
 	}
-	cppType := getCppType(p.Type)
+	cppType := getCppType(p.Type())
 	return fmt.Sprintf(template, cppType, name, builder.String())
+}
+
+func (p *array) Generate(name string, lang Language) string {
+	var builder strings.Builder
+	val := reflect.ValueOf(p.value)
+	for i := 0; i < val.Len(); i++ {
+		addToSet := lang.GenerateAddToArrayTemplate(p, name, lang.Value(val.Index(i), p.Type()))
+		builder.WriteString(addToSet)
+	}
+	return lang.GenerateArrayTemplate(p, name, builder.String())
 }

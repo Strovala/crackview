@@ -7,13 +7,13 @@ import (
 )
 
 type simple struct {
-	*base
+	*baseArgument
 }
 
 func NewSimple(value interface{}) *simple {
 	result := &simple{
-		base: &base{
-			Value: value,
+		baseArgument: &baseArgument{
+			value: value,
 		},
 	}
 	result.Resolve()
@@ -21,24 +21,28 @@ func NewSimple(value interface{}) *simple {
 }
 
 func (p *simple) Resolve() {
-	reflectType := getReflectType(p.Value)
+	reflectType := getReflectType(p.value)
 	inputType := reflectType.String()
-	p.Type = inputType
+	p.argType = inputType
 }
 
 func (p *simple) GeneratePython(name string) string {
 	template := getTemplate(execution.Python, simpleTemplate)
-	return fmt.Sprintf(template, name, valuePython(p.Value, p.Type))
+	return fmt.Sprintf(template, name, valuePython(p.Value, p.Type()))
 }
 
 func (p *simple) GenerateJava(name string) string {
 	template := getTemplate(execution.Java, simpleTemplate)
-	javaType := getJavaType(p.Type)
-	return fmt.Sprintf(template, javaType, name, value(p.Value, p.Type))
+	javaType := getJavaType(p.Type())
+	return fmt.Sprintf(template, javaType, name, value(p.Value, p.Type()))
 }
 
 func (p *simple) GenerateCpp(name string) string {
 	template := getTemplate(execution.Cpp, simpleTemplate)
-	cppType := getCppType(p.Type)
-	return fmt.Sprintf(template, cppType, name, value(p.Value, p.Type))
+	cppType := getCppType(p.Type())
+	return fmt.Sprintf(template, cppType, name, value(p.value, p.Type()))
+}
+
+func (p *simple) Generate(name string, lang Language) string {
+	return lang.GenerateSimpleTemplate(p, name, lang.Value(p.value, p.Type()))
 }

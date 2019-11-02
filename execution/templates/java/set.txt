@@ -1,1 +1,0 @@
-Set<%v> %v = new HashSet<%v>(){{%v}};

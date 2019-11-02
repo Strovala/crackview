@@ -15,15 +15,13 @@ const (
 )
 
 type inputMap struct {
-	*base
-	KeyType   string
-	ValueType string
+	*baseArgument
 }
 
 func NewMap(value interface{}) *inputMap {
 	result := &inputMap{
-		base: &base{
-			Value: value,
+		baseArgument: &baseArgument{
+			value: value,
 		},
 	}
 	result.Resolve()
@@ -31,11 +29,11 @@ func NewMap(value interface{}) *inputMap {
 }
 
 func (p *inputMap) Resolve() {
-	reflectType := getReflectType(p.Value)
+	reflectType := getReflectType(p.value)
 	inputType := reflectType.String()
 	types := strings.Split(inputType, "]")
-	p.KeyType = types[0][4:]
-	p.ValueType = types[1]
+	p.keyType = types[0][4:]
+	p.valueType = types[1]
 }
 
 func (p *inputMap) GeneratePython(name string) string {
@@ -44,7 +42,7 @@ func (p *inputMap) GeneratePython(name string) string {
 	val := reflect.ValueOf(p.Value)
 	for _, k := range val.MapKeys() {
 		v := val.MapIndex(k)
-		fmt.Fprintf(&builder, addToMapTemplatePython, valuePython(k, p.KeyType), valuePython(v, p.ValueType))
+		fmt.Fprintf(&builder, addToMapTemplatePython, valuePython(k, p.KeyType()), valuePython(v, p.ValueType()))
 	}
 	return fmt.Sprintf(template, name, builder.String())
 }
@@ -55,10 +53,10 @@ func (p *inputMap) GenerateJava(name string) string {
 	val := reflect.ValueOf(p.Value)
 	for _, k := range val.MapKeys() {
 		v := val.MapIndex(k)
-		fmt.Fprintf(&builder, addToMapTemplateJava, valuePython(k, p.KeyType), value(v, p.ValueType))
+		fmt.Fprintf(&builder, addToMapTemplateJava, valuePython(k, p.KeyType()), value(v, p.ValueType()))
 	}
-	javaKeyType := javaWrapperClass(getJavaType(p.KeyType))
-	javaValueType := javaWrapperClass(getJavaType(p.ValueType))
+	javaKeyType := javaWrapperClass(getJavaType(p.KeyType()))
+	javaValueType := javaWrapperClass(getJavaType(p.ValueType()))
 	return fmt.Sprintf(template, javaKeyType, javaValueType, name, javaKeyType, javaValueType, builder.String())
 }
 
@@ -68,9 +66,20 @@ func (p *inputMap) GenerateCpp(name string) string {
 	val := reflect.ValueOf(p.Value)
 	for _, k := range val.MapKeys() {
 		v := val.MapIndex(k)
-		fmt.Fprintf(&builder, addToMapTemplateCpp, name, valuePython(k, p.KeyType), value(v, p.ValueType))
+		fmt.Fprintf(&builder, addToMapTemplateCpp, name, valuePython(k, p.KeyType()), value(v, p.ValueType()))
 	}
-	cppKeyType := getCppType(p.KeyType)
-	cppValueType := getCppType(p.ValueType)
+	cppKeyType := getCppType(p.KeyType())
+	cppValueType := getCppType(p.ValueType())
 	return fmt.Sprintf(template, cppKeyType, cppValueType, name, builder.String())
+}
+
+func (p *inputMap) Generate(name string, lang Language) string {
+	var builder strings.Builder
+	val := reflect.ValueOf(p.value)
+	for _, k := range val.MapKeys() {
+		v := val.MapIndex(k)
+		addToMap := lang.GenerateAddToMapTemplate(p, name, lang.Value(k, p.KeyType()), lang.Value(v, p.ValueType()))
+		builder.WriteString(addToMap)
+	}
+	return lang.GenerateMapTemplate(p, name, builder.String())
 }
