@@ -113,9 +113,6 @@ func getReflectType(value interface{}) reflect.Type {
 }
 
 type Argument interface {
-	GeneratePython(name string) string
-	GenerateJava(name string) string
-	GenerateCpp(name string) string
 	Generate(name string, lang Language) string
 
 	Type() string
@@ -182,7 +179,6 @@ func (b *baseArgument) Value() interface{} {
 
 // TODO: Maybe something like this
 type Language interface {
-	Name() string
 	Value(val interface{}, valType string) string
 	GenerateSimpleTemplate(arg Argument, name, value string) string
 	GenerateSetTemplate(arg Argument, name, value string) string
@@ -200,32 +196,8 @@ type baseLang struct {
 	addToMapTemplate   string
 }
 
-func (l *baseLang) Name() string {
-	return l.name
-}
-
-func (l *baseLang) GenerateSimpleTemplate(arg Argument, name, value string) string {
-	return "Not Implemented"
-}
-
-func (l *baseLang) GenerateArrayTemplate(arg Argument, name, value string) string {
-	return "Not Implemented"
-}
-
-func (l *baseLang) GenerateMapTemplate(arg Argument, name, value string) string {
-	return "Not Implemented"
-}
-
-func (l *baseLang) GenerateAddToArrayTemplate(arg Argument, name string, value string) string {
-	return "Not Implemented"
-}
-
-func (l *baseLang) GenerateAddToMapTemplate(arg Argument, name string, keyValue string, Value string) string {
-	return "Not Implemented"
-}
-
-func (l *baseLang) GenerateAddToSetTemplate(arg Argument, name string, value string) string {
-	return "Not Implemented"
+func (l *baseLang) getTemplate(template string) string {
+	return getTemplate(l.name, template)
 }
 
 type python struct {
@@ -237,12 +209,12 @@ func (l *python) Value(val interface{}, valType string) string {
 }
 
 func (l *python) GenerateSimpleTemplate(arg Argument, name, value string) string {
-	template := getTemplate(l.name, simpleTemplate)
+	template := l.getTemplate(simpleTemplate)
 	return fmt.Sprintf(template, name, value)
 }
 
 func (l *python) GenerateArrayTemplate(arg Argument, name, value string) string {
-	template := getTemplate(l.name, arrayTemplate)
+	template := l.getTemplate(arrayTemplate)
 	return fmt.Sprintf(template, name, value)
 }
 
@@ -251,7 +223,7 @@ func (l *python) GenerateAddToArrayTemplate(arg Argument, name string, value str
 }
 
 func (l *python) GenerateSetTemplate(arg Argument, name, value string) string {
-	template := getTemplate(l.name, setTemplate)
+	template := l.getTemplate(setTemplate)
 	return fmt.Sprintf(template, name, value)
 }
 
@@ -260,7 +232,7 @@ func (l *python) GenerateAddToSetTemplate(arg Argument, name string, value strin
 }
 
 func (l *python) GenerateMapTemplate(arg Argument, name, value string) string {
-	template := getTemplate(l.name, mapTemplate)
+	template := l.getTemplate(mapTemplate)
 	return fmt.Sprintf(template, name, value)
 }
 
@@ -277,13 +249,13 @@ func (l *java) Value(val interface{}, valType string) string {
 }
 
 func (l *java) GenerateSimpleTemplate(arg Argument, name, value string) string {
-	template := getTemplate(l.name, simpleTemplate)
+	template := l.getTemplate(simpleTemplate)
 	javaType := getJavaType(arg.Type())
 	return fmt.Sprintf(template, javaType, name, value)
 }
 
 func (l *java) GenerateArrayTemplate(arg Argument, name, value string) string {
-	template := getTemplate(l.name, arrayTemplate)
+	template := l.getTemplate(arrayTemplate)
 	javaType := getJavaType(arg.Type())
 	return fmt.Sprintf(template, javaType, name, javaType, value)
 }
@@ -293,7 +265,7 @@ func (l *java) GenerateAddToArrayTemplate(arg Argument, name string, value strin
 }
 
 func (l *java) GenerateSetTemplate(arg Argument, name, value string) string {
-	template := getTemplate(l.name, setTemplate)
+	template := l.getTemplate(setTemplate)
 	javaType := javaWrapperClass(getJavaType(arg.Type()))
 	return fmt.Sprintf(template, javaType, name, javaType, value)
 }
@@ -303,7 +275,7 @@ func (l *java) GenerateAddToSetTemplate(arg Argument, name string, value string)
 }
 
 func (l *java) GenerateMapTemplate(arg Argument, name, value string) string {
-	template := getTemplate(l.name, mapTemplate)
+	template := l.getTemplate(mapTemplate)
 	javaKeyType := javaWrapperClass(getJavaType(arg.KeyType()))
 	javaValueType := javaWrapperClass(getJavaType(arg.ValueType()))
 	return fmt.Sprintf(template, javaKeyType, javaValueType, name, javaKeyType, javaValueType, value)
@@ -322,13 +294,13 @@ func (l *cpp) Value(val interface{}, valType string) string {
 }
 
 func (l *cpp) GenerateSimpleTemplate(arg Argument, name, value string) string {
-	template := getTemplate(l.name, simpleTemplate)
+	template := l.getTemplate(simpleTemplate)
 	cppType := getCppType(arg.Type())
 	return fmt.Sprintf(template, cppType, name, value)
 }
 
 func (l *cpp) GenerateArrayTemplate(arg Argument, name, value string) string {
-	template := getTemplate(l.name, arrayTemplate)
+	template := l.getTemplate(arrayTemplate)
 	cppType := getCppType(arg.Type())
 	return fmt.Sprintf(template, cppType, name, value)
 }
@@ -338,7 +310,7 @@ func (l *cpp) GenerateAddToArrayTemplate(arg Argument, name string, value string
 }
 
 func (l *cpp) GenerateSetTemplate(arg Argument, name, value string) string {
-	template := getTemplate(l.name, setTemplate)
+	template := l.getTemplate(setTemplate)
 	cppType := getCppType(arg.Type())
 	return fmt.Sprintf(template, cppType, name, value)
 }
@@ -348,7 +320,7 @@ func (l *cpp) GenerateAddToSetTemplate(arg Argument, name string, value string) 
 }
 
 func (l *cpp) GenerateMapTemplate(arg Argument, name, value string) string {
-	template := getTemplate(l.name, mapTemplate)
+	template := l.getTemplate(mapTemplate)
 	cppKeyType := getCppType(arg.KeyType())
 	cppValueType := getCppType(arg.ValueType())
 	return fmt.Sprintf(template, cppKeyType, cppValueType, name, value)
