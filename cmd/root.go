@@ -32,8 +32,8 @@ func initConfig() {
 var rootCmd = &cobra.Command{
 	Use:   "crackview",
 	Short: "Cracking Interview IDE",
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Usage()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cmd.Usage()
 	},
 }
 

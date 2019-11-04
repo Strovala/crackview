@@ -25,10 +25,7 @@ const (
 
 func hasError(errString string, keyword string) bool {
 	lowerErrString := strings.ToLower(errString)
-	if strings.Contains(lowerErrString, keyword) {
-		return true
-	}
-	return false
+	return strings.Contains(lowerErrString, keyword)
 }
 
 // CodeResult have output and error
