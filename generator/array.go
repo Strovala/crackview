@@ -11,12 +11,12 @@ const (
 	addToArrayTemplateJava   = addToArrayTemplatePython
 )
 
-type array struct {
+type Array struct {
 	*argument
 }
 
-func NewArray(value interface{}) *array {
-	result := &array{
+func NewArray(value interface{}) *Array {
+	result := &Array{
 		argument: &argument{
 			value: value,
 		},
@@ -25,12 +25,12 @@ func NewArray(value interface{}) *array {
 	return result
 }
 
-func (p *array) ResolveType() {
+func (p *Array) ResolveType() {
 	inputType := reflect.TypeOf(p.value).String()
 	p.argType = inputType[2:]
 }
 
-func (p *array) Generate(name string, lang Language) string {
+func (p *Array) Generate(name string, lang Language) string {
 	var builder strings.Builder
 	val := reflect.ValueOf(p.value)
 	for i := 0; i < val.Len(); i++ {

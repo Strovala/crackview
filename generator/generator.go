@@ -80,18 +80,19 @@ func getType(lookUp map[string]string, valueType string) string {
 }
 
 func valuePython(value interface{}, valueType string) string {
-	if valueType == stringType {
-		return fmt.Sprintf("\"%v\"", value)
-	} else if valueType == boolType {
+	// if valueType == stringType {
+	// 	return fmt.Sprintf("\"%v\"", value)
+	// } else
+	if valueType == boolType {
 		return capitalizeFirstLetter(fmt.Sprintf("%v", value))
 	}
 	return fmt.Sprintf("%v", value)
 }
 
 func value(value interface{}, valueType string) string {
-	if valueType == stringType {
-		return fmt.Sprintf("\"%v\"", value)
-	}
+	// if valueType == stringType {
+	// 	return fmt.Sprintf("\"%v\"", value)
+	// }
 	return fmt.Sprintf("%v", value)
 }
 

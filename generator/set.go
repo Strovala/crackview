@@ -11,12 +11,12 @@ const (
 	addToSetTemplatePython = "%v,"
 )
 
-type set struct {
+type Set struct {
 	*argument
 }
 
-func NewSet(value interface{}) *set {
-	result := &set{
+func NewSet(value interface{}) *Set {
+	result := &Set{
 		argument: &argument{
 			value: value,
 		},
@@ -25,12 +25,12 @@ func NewSet(value interface{}) *set {
 	return result
 }
 
-func (p *set) ResolveType() {
+func (p *Set) ResolveType() {
 	inputType := reflect.TypeOf(p.value).String()
 	p.argType = inputType[2:]
 }
 
-func (p *set) Generate(name string, lang Language) string {
+func (p *Set) Generate(name string, lang Language) string {
 	var builder strings.Builder
 	val := reflect.ValueOf(p.value)
 	for i := 0; i < val.Len(); i++ {

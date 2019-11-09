@@ -11,12 +11,12 @@ const (
 	addToMapTemplatePython = "%v:%v,"
 )
 
-type inputMap struct {
+type InputMap struct {
 	*argument
 }
 
-func NewMap(value interface{}) *inputMap {
-	result := &inputMap{
+func NewMap(value interface{}) *InputMap {
+	result := &InputMap{
 		argument: &argument{
 			value: value,
 		},
@@ -25,14 +25,14 @@ func NewMap(value interface{}) *inputMap {
 	return result
 }
 
-func (p *inputMap) ResolveType() {
+func (p *InputMap) ResolveType() {
 	inputType := reflect.TypeOf(p.value).String()
 	types := strings.Split(inputType, "]")
 	p.keyType = types[0][4:]
 	p.valueType = types[1]
 }
 
-func (p *inputMap) Generate(name string, lang Language) string {
+func (p *InputMap) Generate(name string, lang Language) string {
 	var builder strings.Builder
 	val := reflect.ValueOf(p.value)
 	for _, k := range val.MapKeys() {

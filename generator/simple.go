@@ -2,12 +2,12 @@ package generator
 
 import "reflect"
 
-type simple struct {
+type Simple struct {
 	*argument
 }
 
-func NewSimple(value interface{}) *simple {
-	result := &simple{
+func NewSimple(value interface{}) *Simple {
+	result := &Simple{
 		argument: &argument{
 			value: value,
 		},
@@ -16,11 +16,11 @@ func NewSimple(value interface{}) *simple {
 	return result
 }
 
-func (p *simple) ResolveType() {
+func (p *Simple) ResolveType() {
 	inputType := reflect.TypeOf(p.value).String()
 	p.argType = inputType
 }
 
-func (p *simple) Generate(name string, lang Language) string {
+func (p *Simple) Generate(name string, lang Language) string {
 	return lang.GenerateSimpleTemplate(name, p.value, p.argType)
 }

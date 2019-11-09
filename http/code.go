@@ -6,6 +6,7 @@ import (
 
 	"github.com/Strovala/crackview/execution"
 	"github.com/Strovala/crackview/generator"
+	"github.com/Strovala/crackview/parser"
 	"github.com/go-chi/chi"
 	"github.com/spf13/viper"
 )
@@ -30,7 +31,10 @@ func (c *code) Execute(w http.ResponseWriter, r *http.Request) error {
 	if err := Unmarshal(&data, r); err != nil {
 		return err
 	}
-	args := initArgs()
+	args, err := parser.Parse(data.Input)
+	if err != nil {
+		return err
+	}
 	var executor execution.Executor
 	switch data.Lang {
 	case execution.Python:
@@ -53,23 +57,7 @@ func (c *code) Execute(w http.ResponseWriter, r *http.Request) error {
 
 // CodeRequest is DTO for request for code run
 type CodeRequest struct {
-	Text string `json:"text"`
-	Lang string `json:"lang"`
-}
-
-func initArgs() []generator.Argument {
-	n := 5
-	arr := []int{1, 3, 5}
-	aMap := map[int]int{1: 2, 3: 4}
-	bMap := map[string]bool{"foo": false, "bar": true}
-	set := []float64{3.4, 5.6}
-	inputN := generator.NewSimple(n)
-	inputArr := generator.NewArray(arr)
-	inputMapA := generator.NewMap(aMap)
-	inputMapB := generator.NewMap(bMap)
-	inputSet := generator.NewSet(set)
-	args := []generator.Argument{
-		inputN, inputArr, inputMapA, inputMapB, inputSet,
-	}
-	return args
+	Input string `json:"input"`
+	Text  string `json:"text"`
+	Lang  string `json:"lang"`
 }
